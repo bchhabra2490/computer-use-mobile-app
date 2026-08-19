@@ -16,7 +16,7 @@ import {
   type StatusPayload,
 } from "./types";
 
-export const HEALTH_TIMEOUT_MS = 2000;
+export const HEALTH_TIMEOUT_MS = 8000;
 export const REQUEST_TIMEOUT_MS = 5000;
 export const SCREEN_TIMEOUT_MS = 8000;
 export const AUDIO_TIMEOUT_MS = 20000;

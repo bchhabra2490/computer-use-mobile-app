@@ -37,7 +37,7 @@ src/app/index.tsx      Home (or redirect to pair)
 src/app/pair.tsx
 src/app/settings.tsx
 src/app/compose.tsx    Deep link from the home widget
-src/api/client.ts      fetch wrappers (health 2s, others 5s)
+src/api/client.ts      fetch wrappers (health 8s, others 5s)
 src/api/sse.ts
 src/api/types.ts
 src/state/connection.ts
@@ -93,7 +93,7 @@ The phone **does not** request a new screenshot. It only pulls the last frame wh
 
 Client: connect SSE; on error fall back to polling `GET /v1/status` every 1.0s. Reconnect with backoff 1s, 2s, 5s, max 15s.
 
-Timeouts: health 2s, command/control/status 5s, screen 8s, audio 20s, photo 20s.
+Timeouts: health 8s, command/control/status 5s, screen 8s, audio 20s, photo 20s.
 
 401 → “token rejected, re-pair”.
 

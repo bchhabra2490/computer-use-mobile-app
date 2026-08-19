@@ -96,7 +96,8 @@
             }
           ]
         }
-      ]
+      ],
+      "./plugins/with-lan-http"
     ],
     "experiments": {
       "typedRoutes": true,
