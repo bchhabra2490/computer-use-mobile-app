@@ -46,6 +46,7 @@ export function HomeScreen() {
     sendControl,
     refresh,
     clearActionError,
+    speechPlaying,
   } = useJarvis();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
@@ -253,10 +254,17 @@ export function HomeScreen() {
           <Panel
             label="Last spoken"
             accessory={
-              status?.photo_at ? (
-                <Text style={styles.queuedText}>
-                  {status.photo_pending ? "LOOKING" : "PHOTO HELD"}
-                </Text>
+              status?.reply_sink === "phone" || status?.photo_at ? (
+                <View style={styles.saidAccessories}>
+                  {status?.reply_sink === "phone" ? (
+                    <Text style={styles.queuedText}>{speechPlaying ? "PLAYING" : "PHONE"}</Text>
+                  ) : null}
+                  {status?.photo_at ? (
+                    <Text style={styles.queuedText}>
+                      {status.photo_pending ? "LOOKING" : "PHOTO HELD"}
+                    </Text>
+                  ) : null}
+                </View>
               ) : null
             }>
             {status?.last_spoken ? (
@@ -537,6 +545,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1.2,
+  },
+  saidAccessories: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   task: {
     color: colors.text,

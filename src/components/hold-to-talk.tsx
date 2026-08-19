@@ -97,6 +97,11 @@ export function HoldToTalkButton({
         } catch {
           // already stopped (duration cap)
         }
+        try {
+          await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+        } catch {
+          // playback mode optional
+        }
         recordingStartedAt.current = 0;
         const uri = recorder.uri;
         if (!send) return;

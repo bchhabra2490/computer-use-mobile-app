@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import { File } from "expo-file-system";
+import { File, Paths } from "expo-file-system";
 
 import { originOf, type Pairing } from "@/storage/pairing";
 
@@ -21,6 +21,7 @@ export const REQUEST_TIMEOUT_MS = 5000;
 export const SCREEN_TIMEOUT_MS = 8000;
 export const AUDIO_TIMEOUT_MS = 20000;
 export const PHOTO_TIMEOUT_MS = 20000;
+export const SPEECH_TIMEOUT_MS = 15000;
 export const AUDIO_MAX_BYTES = 2_500_000;
 export const AUDIO_MAX_SECONDS = 30;
 export const PHOTO_MAX_BYTES = 6_000_000;
@@ -450,6 +451,62 @@ export async function getScreen(
       throw new ApiError(0, "timeout", "Timed out loading screen");
     }
     throw new ApiError(0, "network", "Can't load Mac screen");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export type SpeechFetchResult =
+  | { ok: true; uri: string; at: number }
+  | { ok: false; missing: true; at: number };
+
+export function speechUrl(base: string, token: string, at: number): string {
+  return `${base}/v1/speech?token=${encodeURIComponent(token)}&t=${at}`;
+}
+
+export async function getSpeech(
+  pairing: Pairing,
+  at: number,
+  timeoutMs: number = SPEECH_TIMEOUT_MS,
+): Promise<SpeechFetchResult> {
+  const origin = originOf(pairing);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const url = `${origin}/v1/speech?t=${encodeURIComponent(String(at))}`;
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "audio/wav",
+        Authorization: `Bearer ${pairing.token}`,
+      },
+      signal: controller.signal,
+    });
+
+    if (res.status === 401) {
+      throw new ApiError(401, "unauthorized", "token rejected, re-pair");
+    }
+    if (res.status === 404) {
+      return { ok: false, missing: true, at };
+    }
+    if (!res.ok) {
+      throw new ApiError(res.status, "http", `Speech failed (${res.status})`);
+    }
+
+    if (Platform.OS === "web") {
+      const blob = await res.blob();
+      return { ok: true, uri: URL.createObjectURL(blob), at };
+    }
+
+    const dest = new File(Paths.cache, `jarvis-phone-tts-${at}.wav`);
+    dest.write(new Uint8Array(await res.arrayBuffer()));
+    return { ok: true, uri: dest.uri, at };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ApiError(0, "timeout", "Timed out loading speech");
+    }
+    throw new ApiError(0, "network", "Can't load phone speech");
   } finally {
     clearTimeout(timer);
   }

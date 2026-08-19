@@ -29,6 +29,7 @@ export type JarvisContextValue = {
   sendControl: (action: ControlAction) => Promise<void>;
   refresh: () => Promise<void>;
   clearActionError: () => void;
+  speechPlaying: boolean;
 };
 
 export const JarvisContext = createContext<JarvisContextValue | null>(null);

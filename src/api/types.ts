@@ -39,6 +39,9 @@ export type StatusPayload = {
   photo_width: number | null;
   photo_height: number | null;
   photo_pending: boolean;
+  reply_sink: "phone" | "mac" | string;
+  speech_at: number | null;
+  speech_bytes: number | null;
 };
 
 function parseOptionalNumber(value: unknown): number | null {
@@ -140,6 +143,9 @@ export function parseStatusPayload(value: unknown): StatusPayload {
     photo_width: parseOptionalNumber(o.photo_width),
     photo_height: parseOptionalNumber(o.photo_height),
     photo_pending: Boolean(o.photo_pending),
+    reply_sink: typeof o.reply_sink === "string" && o.reply_sink.length > 0 ? o.reply_sink : "mac",
+    speech_at: parseOptionalNumber(o.speech_at),
+    speech_bytes: parseOptionalNumber(o.speech_bytes),
   };
 }
 
