@@ -144,10 +144,15 @@ export async function getStatus(
   }
 }
 
+function phoneSinkField(sink?: "phone"): { sink: "phone" } | Record<string, never> {
+  return sink === "phone" ? { sink: "phone" } : {};
+}
+
 export async function postCommand(
   pairing: Pairing,
   text: string,
   timeoutMs: number = REQUEST_TIMEOUT_MS,
+  sink?: "phone",
 ): Promise<CommandResponse> {
   const origin = originOf(pairing);
   const { body } = await fetchJson(
@@ -155,7 +160,7 @@ export async function postCommand(
     {
       method: "POST",
       headers: authHeaders(pairing.token, true),
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, ...phoneSinkField(sink) }),
     },
     timeoutMs,
     origin,
@@ -282,6 +287,7 @@ export async function postAudioFile(
   uri: string,
   contentType: string = mimeFromAudioUri(uri),
   timeoutMs: number = AUDIO_TIMEOUT_MS,
+  sink?: "phone",
 ): Promise<AudioResponse> {
   const { base64, bytes, filename } = await readLocalBase64(
     uri,
@@ -303,6 +309,7 @@ export async function postAudioFile(
         audio: base64,
         mime: contentType,
         filename,
+        ...phoneSinkField(sink),
       }),
     },
     timeoutMs,
@@ -337,6 +344,7 @@ export async function postPhotoFile(
   audioUri?: string,
   contentType: string = mimeFromImageUri(uri),
   timeoutMs: number = PHOTO_TIMEOUT_MS,
+  sink?: "phone",
 ): Promise<PhotoResponse> {
   const { base64, bytes, filename } = await readLocalBase64(
     uri,
@@ -376,6 +384,7 @@ export async function postPhotoFile(
         photo: base64,
         mime: contentType,
         filename,
+        ...phoneSinkField(sink),
         ...(caption ? { text: caption } : {}),
         ...(audio
           ? { audio, audio_mime: audioMime, audio_filename: audioFilename }

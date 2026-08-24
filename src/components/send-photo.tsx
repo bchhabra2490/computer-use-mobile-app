@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, Pressable, StyleSheet } from "react-native";
 import {
   launchCameraAsync,
   launchImageLibraryAsync,
@@ -10,7 +10,8 @@ import {
 import * as Haptics from "expo-haptics";
 
 import { PHOTO_MAX_BYTES } from "@/api/client";
-import { colors } from "@/theme";
+import { CameraIcon } from "@/components/icons";
+import { colors, hairline, radii } from "@/theme";
 
 const PICKER: ImagePickerOptions = {
   mediaTypes: ["images"],
@@ -90,79 +91,54 @@ export function SendPhotoButton({
   useEffect(() => {
     if (!requestCapture) return;
     void takePhoto(true);
-    // takePhoto is recreated each render; kick only when the widget asks again
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestCapture]);
 
-  const onPress = () => {
-    if (blocked) return;
-    void takePhoto();
-  };
-
-  const onLongPress = () => {
-    if (blocked) return;
-    void pickLibrary();
-  };
-
   return (
-    <View style={styles.wrap}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Attach a camera still. Long press to pick from the library."
-        disabled={blocked}
-        onPress={onPress}
-        onLongPress={onLongPress}
-        delayLongPress={380}
-        style={({ pressed }) => [
-          styles.cam,
-          attached ? styles.live : null,
-          pressed && !blocked ? styles.pressed : null,
-          blocked ? styles.dimmed : null,
-        ]}>
-        <Text style={styles.camText}>CAM</Text>
-      </Pressable>
-      <Text style={styles.caption}>{attached ? "HELD" : "ATTACH"}</Text>
-    </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Attach a camera still. Long press to pick from the library."
+      accessibilityState={{ selected: attached }}
+      disabled={blocked}
+      onPress={() => {
+        if (blocked) return;
+        void takePhoto();
+      }}
+      onLongPress={() => {
+        if (blocked) return;
+        void pickLibrary();
+      }}
+      delayLongPress={380}
+      style={({ pressed }) => [
+        styles.btn,
+        attached ? styles.held : null,
+        pressed && !blocked ? styles.pressed : null,
+        blocked ? styles.dimmed : null,
+      ]}>
+      <CameraIcon color={colors.text} size={22} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    alignItems: "center",
-    gap: 4,
-    minWidth: 52,
-  },
-  cam: {
-    minWidth: 48,
-    minHeight: 48,
-    borderRadius: 8,
+  btn: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
     backgroundColor: colors.elevated,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: hairline,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
   },
-  live: {
+  held: {
     borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
   pressed: {
     opacity: 0.9,
   },
   dimmed: {
     opacity: 0.38,
-  },
-  camText: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    color: colors.text,
-  },
-  caption: {
-    color: colors.faint,
-    fontSize: 9,
-    fontWeight: "600",
-    letterSpacing: 0.6,
-    textAlign: "center",
   },
 });

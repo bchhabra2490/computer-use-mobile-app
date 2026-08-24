@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, hairline, radii } from "@/theme";
@@ -7,6 +8,7 @@ type Variant = "primary" | "secondary" | "danger" | "ghost";
 type Props = {
   label: string;
   caption?: string;
+  icon?: ReactNode;
   onPress: () => void;
   disabled?: boolean;
   busy?: boolean;
@@ -24,6 +26,7 @@ const variantStyles: Record<Variant, { bg: string; fg: string; border: string }>
 export function AppButton({
   label,
   caption,
+  icon,
   onPress,
   disabled = false,
   busy = false,
@@ -51,6 +54,7 @@ export function AppButton({
         <ActivityIndicator color={palette.fg} />
       ) : (
         <View style={styles.labels}>
+          {icon ? <View style={styles.icon}>{icon}</View> : null}
           <Text style={[styles.label, { color: palette.fg }]}>{label}</Text>
           {caption ? (
             <Text style={[styles.caption, { color: palette.fg }]}>{caption}</Text>
@@ -82,7 +86,10 @@ const styles = StyleSheet.create({
   },
   labels: {
     alignItems: "center",
-    gap: 1,
+    gap: 2,
+  },
+  icon: {
+    marginBottom: 1,
   },
   label: {
     fontSize: 13,

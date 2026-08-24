@@ -1,5 +1,5 @@
-import { Alert, Platform, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { Alert, Platform, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppButton } from "@/components/app-button";
@@ -10,7 +10,8 @@ import { colors, fonts } from "@/theme";
 import { pinComposeWidget } from "@/widget/sync";
 
 export default function SettingsScreen() {
-  const { pairing, connection, savePairingAndConnect, forgetMac } = useJarvis();
+  const { pairing, connection, savePairingAndConnect, forgetMac, phoneSink, setPhoneSink } =
+    useJarvis();
 
   return (
     <SafeAreaView style={styles.safe} edges={["bottom", "left", "right"]}>
@@ -79,6 +80,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     letterSpacing: 0.2,
+  },
+  mono: {
+    fontFamily: fonts.mono,
+    color: colors.text,
   },
   forget: {
     marginTop: 28,

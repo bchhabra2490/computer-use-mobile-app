@@ -30,6 +30,8 @@ export type JarvisContextValue = {
   refresh: () => Promise<void>;
   clearActionError: () => void;
   speechPlaying: boolean;
+  phoneSink: boolean;
+  setPhoneSink: (on: boolean) => void;
 };
 
 export const JarvisContext = createContext<JarvisContextValue | null>(null);

@@ -16,6 +16,7 @@ import {
   savePairing,
   type Pairing,
 } from "@/storage/pairing";
+import { DEFAULT_PHONE_SINK, loadPhoneSink, savePhoneSink } from "@/storage/phone-sink";
 import { syncComposeWidget } from "@/widget/sync";
 
 function logsMatchCommand(logs: string[], text: string): boolean {
@@ -34,6 +35,7 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
   const [screenUri, setScreenUri] = useState<string | null>(null);
   const [screenLoading, setScreenLoading] = useState(false);
   const [speechPlaying, setSpeechPlaying] = useState(false);
+  const [phoneSink, setPhoneSinkState] = useState(DEFAULT_PHONE_SINK);
   const sawQueuedRef = useRef(false);
   const lastScreenAtRef = useRef<number | null>(null);
   const wantedScreenAtRef = useRef<number | null>(null);
@@ -49,9 +51,10 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const stored = await loadPairing();
+      const [stored, sinkOn] = await Promise.all([loadPairing(), loadPhoneSink()]);
       if (cancelled) return;
       setPairing(stored);
+      setPhoneSinkState(sinkOn);
       setReady(true);
     })();
     return () => {
@@ -297,7 +300,12 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
       }
       setActionError(null);
       try {
-        const result = await postCommand(current, trimmed);
+        const result = await postCommand(
+          current,
+          trimmed,
+          undefined,
+          phoneSink ? "phone" : undefined,
+        );
         sawQueuedRef.current = result.queued;
         setPendingText(trimmed);
         setSentCommands((prev) =>
@@ -312,7 +320,7 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [pairing],
+    [pairing, phoneSink],
   );
 
   const sendAudio = useCallback(
@@ -323,7 +331,13 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
       }
       setActionError(null);
       try {
-        const result = await postAudioFile(current, uri);
+        const result = await postAudioFile(
+          current,
+          uri,
+          undefined,
+          undefined,
+          phoneSink ? "phone" : undefined,
+        );
         const label = result.text.trim() || "(voice)";
         sawQueuedRef.current = result.queued;
         setPendingText(label);
@@ -339,7 +353,7 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [pairing],
+    [pairing, phoneSink],
   );
 
   const sendPhoto = useCallback(
@@ -350,7 +364,15 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
       }
       setActionError(null);
       try {
-        const result = await postPhotoFile(current, uri, text, audioUri);
+        const result = await postPhotoFile(
+          current,
+          uri,
+          text,
+          audioUri,
+          undefined,
+          undefined,
+          phoneSink ? "phone" : undefined,
+        );
         const label = result.text.trim() || text?.trim() || "(photo)";
         sawQueuedRef.current = result.queued;
         setPendingText(label);
@@ -366,7 +388,7 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [pairing],
+    [pairing, phoneSink],
   );
 
   const sendControl = useCallback(
@@ -412,6 +434,11 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
 
   const clearActionError = useCallback(() => setActionError(null), []);
 
+  const setPhoneSink = useCallback((on: boolean) => {
+    setPhoneSinkState(on);
+    void savePhoneSink(on);
+  }, []);
+
   const value = useMemo<JarvisContextValue>(
     () => ({
       ready,
@@ -425,6 +452,8 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
       screenUri,
       screenLoading,
       speechPlaying,
+      phoneSink,
+      setPhoneSink,
       savePairingAndConnect,
       forgetMac,
       sendCommand,
@@ -446,6 +475,8 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
       screenUri,
       screenLoading,
       speechPlaying,
+      phoneSink,
+      setPhoneSink,
       savePairingAndConnect,
       forgetMac,
       sendCommand,

@@ -13,7 +13,8 @@ import {
 import * as Haptics from "expo-haptics";
 
 import { AUDIO_MAX_BYTES, AUDIO_MAX_SECONDS } from "@/api/client";
-import { colors } from "@/theme";
+import { MicIcon } from "@/components/icons";
+import { colors, hairline, radii } from "@/theme";
 
 const TAP_MS = 280;
 const MIN_MS = 1000;
@@ -190,7 +191,6 @@ export function HoldToTalkButton({
     return () => {
       cancelled = true;
     };
-    // start is recreated each render; kick only when the widget asks again
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestLatch]);
 
@@ -224,76 +224,59 @@ export function HoldToTalkButton({
     }
   };
 
-  const label = uploading
-    ? "…"
-    : recording
-      ? formatSecs(recState.durationMillis)
-      : "mic";
+  const iconColor = recording ? colors.error : attached ? colors.text : colors.text;
 
   return (
-    <View style={styles.wrap}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={
-          latched
-            ? asCaption
-              ? "Stop recording and attach as the photo question"
-              : "Stop recording and send"
-            : asCaption
-              ? "Hold to record a question about the photo, or tap to record"
-              : "Hold to talk, or tap to record"
-        }
-        disabled={blocked}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        onPress={onPress}
-        delayLongPress={10_000}
-        style={({ pressed }) => [
-          styles.mic,
-          recording ? styles.live : null,
-          attached && !recording ? styles.held : null,
-          (pressed || recording) && !blocked ? styles.pressed : null,
-          blocked && !recording ? styles.dimmed : null,
-        ]}>
-        <Text style={[styles.micText, recording ? styles.liveText : null]}>
-          {uploading ? "…" : recording ? "REC" : "MIC"}
-        </Text>
-      </Pressable>
-      <Text style={styles.caption}>
-        {uploading
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={
+        latched
           ? asCaption
-            ? "HOLDING"
-            : "SENDING"
-          : latched
-            ? `${label} · ${asCaption ? "TAP KEEP" : "TAP SEND"}`
-            : recording
-              ? `${label} / 0:30`
-              : attached
-                ? "HELD"
-                : asCaption
-                  ? "ASK"
-                  : "HOLD / TAP"}
-      </Text>
-    </View>
+            ? "Stop recording and attach as the photo question"
+            : "Stop recording and send"
+          : asCaption
+            ? "Hold to record a question about the photo, or tap to record"
+            : "Hold to talk, or tap to record"
+      }
+      accessibilityHint={
+        recording ? formatSecs(recState.durationMillis) : attached ? "Clip attached" : undefined
+      }
+      disabled={blocked}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      onPress={onPress}
+      delayLongPress={10_000}
+      style={({ pressed }) => [
+        styles.btn,
+        recording ? styles.live : null,
+        attached && !recording ? styles.held : null,
+        (pressed || recording) && !blocked ? styles.pressed : null,
+        blocked && !recording ? styles.dimmed : null,
+      ]}>
+      {uploading ? (
+        <Text style={styles.status}>…</Text>
+      ) : recording ? (
+        <View style={styles.recStack}>
+          <MicIcon color={iconColor} size={20} />
+          <Text style={styles.recTime}>{formatSecs(recState.durationMillis)}</Text>
+        </View>
+      ) : (
+        <MicIcon color={iconColor} size={22} />
+      )}
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    alignItems: "center",
-    gap: 4,
-    minWidth: 52,
-  },
-  mic: {
-    minWidth: 48,
-    minHeight: 48,
-    borderRadius: 8,
+  btn: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
     backgroundColor: colors.elevated,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: hairline,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
   },
   live: {
     backgroundColor: colors.errorFill,
@@ -301,6 +284,7 @@ const styles = StyleSheet.create({
   },
   held: {
     borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
   pressed: {
     opacity: 0.9,
@@ -308,20 +292,20 @@ const styles = StyleSheet.create({
   dimmed: {
     opacity: 0.38,
   },
-  micText: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.2,
+  status: {
     color: colors.text,
+    fontSize: 16,
+    fontWeight: "700",
   },
-  liveText: {
+  recStack: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1,
+  },
+  recTime: {
     color: colors.error,
-  },
-  caption: {
-    color: colors.faint,
-    fontSize: 9,
-    fontWeight: "600",
-    letterSpacing: 0.6,
-    textAlign: "center",
+    fontSize: 8,
+    fontWeight: "700",
+    letterSpacing: 0.4,
   },
 });

@@ -1,15 +1,19 @@
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Keyboard,
+  LayoutAnimation,
   Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
+  UIManager,
   View,
 } from "react-native";
 import { router } from "expo-router";
@@ -19,12 +23,17 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { AppButton } from "@/components/app-button";
 import { Panel, SettingsGlyph, StatusChip } from "@/components/chrome";
 import { HoldToTalkButton } from "@/components/hold-to-talk";
+import { ChevronIcon, PhoneSpeakerIcon, SendIcon } from "@/components/icons";
 import { MacScreenPreview } from "@/components/mac-screen";
 import { SendPhotoButton } from "@/components/send-photo";
 import { consumeComposeIntent, useComposeIntent } from "@/hooks/use-compose-intent";
 import { useKeyboardHeight } from "@/hooks/use-keyboard-height";
 import { useJarvis } from "@/state/jarvis-context";
 import { colors, connectionColor, connectionLabel, fonts, hairline, radii } from "@/theme";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 function logMatchesSent(line: string, text: string): boolean {
   return line.includes("[user]") && line.includes(text);
@@ -47,6 +56,8 @@ export function HomeScreen() {
     refresh,
     clearActionError,
     speechPlaying,
+    phoneSink,
+    setPhoneSink,
   } = useJarvis();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
@@ -57,6 +68,7 @@ export function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(true);
   const [micKick, setMicKick] = useState(0);
   const [camKick, setCamKick] = useState(0);
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
@@ -79,6 +91,9 @@ export function HomeScreen() {
     ? `[phone] “${latestPending.text}”`
     : logs[logs.length - 1] ?? null;
 
+  const canSend =
+    connected && !sending && (Boolean(pendingPhoto) || draft.trim().length > 0);
+
   useEffect(() => {
     if (pinnedToBottom) {
       logRef.current?.scrollToEnd({ animated: true });
@@ -91,13 +106,24 @@ export function HomeScreen() {
     if (composeIntent.action === "type") {
       requestAnimationFrame(() => inputRef.current?.focus());
     } else if (composeIntent.action === "mic") {
+      setToolsOpen(true);
       setMicKick(composeIntent.id);
     } else if (composeIntent.action === "cam") {
+      setToolsOpen(true);
       setCamKick(composeIntent.id);
       requestAnimationFrame(() => inputRef.current?.focus());
     }
     consumeComposeIntent(composeIntent.id);
   }, [composeIntent]);
+
+  useEffect(() => {
+    if (pendingPhoto || pendingAudio) setToolsOpen(true);
+  }, [pendingPhoto, pendingAudio]);
+
+  const toggleTools = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setToolsOpen((open) => !open);
+  };
 
   const onSendComposer = async () => {
     const text = draft.trim();
@@ -148,17 +174,21 @@ export function HomeScreen() {
   };
 
   const onQuit = () => {
-    Alert.alert("Stop Jarvis on the Mac?", "The orchestrator will exit. Start it again on the Mac when you want it back.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Quit",
-        style: "destructive",
-        onPress: () => {
-          setControlBusy("quit");
-          void sendControl("quit").finally(() => setControlBusy(null));
+    Alert.alert(
+      "Stop Jarvis on the Mac?",
+      "The orchestrator will exit. Start it again on the Mac when you want it back.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Quit",
+          style: "destructive",
+          onPress: () => {
+            setControlBusy("quit");
+            void sendControl("quit").finally(() => setControlBusy(null));
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const state = status?.state ?? "offline";
@@ -307,7 +337,7 @@ export function HomeScreen() {
             onHeaderPress={() => setActivityOpen((open) => !open)}
             headerAccessibilityLabel={activityOpen ? "Collapse activity" : "Expand activity"}
             accessory={
-              <Text style={styles.sectionChevron}>{activityOpen ? "COLLAPSE" : "EXPAND"}</Text>
+              <ChevronIcon color={colors.faint} size={12} up={activityOpen} />
             }>
             {activityOpen ? (
               <>
@@ -349,6 +379,7 @@ export function HomeScreen() {
             <AppButton
               label="Send"
               caption="Finish Mac listen"
+              icon={<SendIcon color={colors.text} size={16} />}
               flex
               disabled={!connected || !sttActive}
               busy={controlBusy === "send"}
@@ -383,7 +414,7 @@ export function HomeScreen() {
                     ? "Typed text is the question. Mic clip is ignored."
                     : pendingAudio
                       ? "The clip is the question. Type to override. Empty uses the Mac default."
-                      : "Type a question or hold MIC. Empty uses the Mac default."}
+                      : "Type a question or hold the mic. Empty uses the Mac default."}
                 </Text>
               </View>
               {pendingAudio ? (
@@ -410,62 +441,124 @@ export function HomeScreen() {
             </View>
           ) : null}
 
-          <View style={styles.composer}>
-            <TextInput
-              ref={inputRef}
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={
-                !connected
-                  ? "Offline"
-                  : pendingPhoto
-                    ? pendingAudio
-                      ? "Optional: override the voice question…"
-                      : "Type a question, or hold MIC…"
-                    : "Command or photo question…"
-              }
-              placeholderTextColor={colors.faint}
-              multiline
-              style={styles.input}
-              selectionColor={colors.accent}
-              editable={connected && !sending}
-              onFocus={() => {
-                requestAnimationFrame(() => {
-                  logRef.current?.scrollToEnd({ animated: true });
-                });
-              }}
-            />
-            <HoldToTalkButton
-              disabled={!connected}
-              busy={sending}
-              asCaption={Boolean(pendingPhoto)}
-              attached={Boolean(pendingAudio)}
-              requestLatch={micKick}
-              onSend={async (uri) => {
-                if (pendingPhoto) {
-                  setPendingAudio(uri);
-                  return;
+          <View style={styles.composerShell}>
+            {toolsOpen ? (
+              <View style={styles.toolsRow}>
+                <View style={styles.phoneSink}>
+                  <PhoneSpeakerIcon
+                    color={phoneSink ? colors.listening : colors.faint}
+                    size={16}
+                  />
+                  <Text style={[styles.phoneSinkLabel, phoneSink ? styles.phoneSinkOn : null]}>
+                    PHONE
+                  </Text>
+                  <Switch
+                    value={phoneSink}
+                    onValueChange={setPhoneSink}
+                    trackColor={{ false: colors.border, true: colors.listening }}
+                    thumbColor={phoneSink ? colors.accentFill : colors.muted}
+                    ios_backgroundColor={colors.border}
+                    accessibilityLabel="Reply on phone"
+                  />
+                </View>
+                <View style={styles.toolsActions}>
+                  <SendPhotoButton
+                    disabled={!connected}
+                    busy={sending}
+                    attached={Boolean(pendingPhoto)}
+                    requestCapture={camKick}
+                    onPicked={(uri) => {
+                      setPendingPhoto(uri);
+                      requestAnimationFrame(() => inputRef.current?.focus());
+                    }}
+                  />
+                  <HoldToTalkButton
+                    disabled={!connected}
+                    busy={sending}
+                    asCaption={Boolean(pendingPhoto)}
+                    attached={Boolean(pendingAudio)}
+                    requestLatch={micKick}
+                    onSend={async (uri) => {
+                      if (pendingPhoto) {
+                        setPendingAudio(uri);
+                        return;
+                      }
+                      await sendAudio(uri);
+                    }}
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Collapse tools"
+                    onPress={toggleTools}
+                    hitSlop={8}
+                    style={styles.collapseHit}>
+                    <ChevronIcon color={colors.faint} size={14} />
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Expand tools"
+                onPress={toggleTools}
+                style={styles.toolsCollapsed}>
+                <View style={styles.toolsCollapsedLeft}>
+                  <PhoneSpeakerIcon
+                    color={phoneSink ? colors.listening : colors.faint}
+                    size={14}
+                  />
+                  <Text style={styles.toolsCollapsedText}>
+                    {phoneSink ? "PHONE ON" : "PHONE OFF"}
+                    {pendingPhoto ? " · PHOTO" : ""}
+                    {pendingAudio ? " · MIC" : ""}
+                  </Text>
+                </View>
+                <ChevronIcon color={colors.faint} size={14} up />
+              </Pressable>
+            )}
+
+            <View style={styles.inputRow}>
+              <TextInput
+                ref={inputRef}
+                value={draft}
+                onChangeText={setDraft}
+                placeholder={
+                  !connected
+                    ? "Offline"
+                    : pendingPhoto
+                      ? pendingAudio
+                        ? "Optional: override the voice question…"
+                        : "Type a question, or hold the mic…"
+                      : "Message Jarvis…"
                 }
-                await sendAudio(uri);
-              }}
-            />
-            <SendPhotoButton
-              disabled={!connected}
-              busy={sending}
-              attached={Boolean(pendingPhoto)}
-              requestCapture={camKick}
-              onPicked={(uri) => {
-                setPendingPhoto(uri);
-                requestAnimationFrame(() => inputRef.current?.focus());
-              }}
-            />
-            <AppButton
-              label="Send"
-              variant="primary"
-              disabled={!connected || sending || (!pendingPhoto && draft.trim().length === 0)}
-              busy={sending}
-              onPress={() => void onSendComposer()}
-            />
+                placeholderTextColor={colors.faint}
+                multiline
+                style={styles.input}
+                selectionColor={colors.accent}
+                editable={connected && !sending}
+                onFocus={() => {
+                  requestAnimationFrame(() => {
+                    logRef.current?.scrollToEnd({ animated: true });
+                  });
+                }}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Send"
+                disabled={!canSend}
+                onPress={() => void onSendComposer()}
+                style={({ pressed }) => [
+                  styles.sendBtn,
+                  !canSend ? styles.sendDimmed : null,
+                  pressed && canSend ? styles.sendPressed : null,
+                ]}>
+                {sending ? (
+                  <ActivityIndicator color={colors.accentOnFill} />
+                ) : (
+                  <SendIcon color={colors.accentOnFill} size={20} />
+                )}
+              </Pressable>
+            </View>
           </View>
         </View>
       </View>
@@ -595,12 +688,6 @@ const styles = StyleSheet.create({
     marginTop: 3,
     lineHeight: 18,
   },
-  sectionChevron: {
-    color: colors.faint,
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-  },
   logLine: {
     color: colors.text,
     fontSize: 12,
@@ -621,7 +708,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 12,
     paddingTop: 10,
-    paddingBottom: Platform.OS === "ios" ? 8 : 12,
     gap: 8,
     borderTopWidth: hairline,
     borderTopColor: colors.border,
@@ -629,11 +715,6 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: "row",
-    gap: 8,
-  },
-  composer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
     gap: 8,
   },
   attach: {
@@ -676,17 +757,100 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.4,
   },
+  composerShell: {
+    borderWidth: hairline,
+    borderColor: colors.borderStrong,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    overflow: "hidden",
+  },
+  toolsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: hairline,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.elevated,
+  },
+  phoneSink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 1,
+  },
+  phoneSinkLabel: {
+    color: colors.faint,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+  },
+  phoneSinkOn: {
+    color: colors.listening,
+  },
+  toolsActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  collapseHit: {
+    width: 36,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toolsCollapsed: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: hairline,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.elevated,
+  },
+  toolsCollapsedLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  toolsCollapsedText: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.8,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
   input: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 44,
     maxHeight: 120,
-    backgroundColor: colors.elevated,
-    borderColor: colors.border,
-    borderWidth: hairline,
-    borderRadius: radii.md,
     color: colors.text,
     fontSize: 15,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    lineHeight: 20,
+    paddingHorizontal: 8,
+    paddingVertical: Platform.OS === "ios" ? 10 : 8,
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    backgroundColor: colors.accentFill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sendDimmed: {
+    opacity: 0.35,
+  },
+  sendPressed: {
+    opacity: 0.88,
   },
 });
