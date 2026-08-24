@@ -1,4 +1,6 @@
+import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,8 +18,6 @@ import {
   UIManager,
   View,
 } from "react-native";
-import { router } from "expo-router";
-import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppButton } from "@/components/app-button";
@@ -378,9 +378,10 @@ export function HomeScreen() {
           <View style={styles.controls}>
             <AppButton
               label="Send"
-              caption="Finish Mac listen"
-              icon={<SendIcon color={colors.text} size={16} />}
+              caption="Mac listen"
+              icon={<SendIcon color={colors.text} size={12} />}
               flex
+              compact
               disabled={!connected || !sttActive}
               busy={controlBusy === "send"}
               onPress={onFinishListen}
@@ -388,6 +389,7 @@ export function HomeScreen() {
             <AppButton
               label="Mark done"
               flex
+              compact
               disabled={!connected}
               busy={controlBusy === "mark_done"}
               onPress={onMarkDone}
@@ -396,6 +398,7 @@ export function HomeScreen() {
               label="Quit"
               variant="danger"
               flex
+              compact
               disabled={!connected}
               busy={controlBusy === "quit"}
               onPress={onQuit}
@@ -508,7 +511,7 @@ export function HomeScreen() {
                     size={14}
                   />
                   <Text style={styles.toolsCollapsedText}>
-                    {phoneSink ? "PHONE ON" : "PHONE OFF"}
+                    {phoneSink ? "PHONE 🔈 ON" : "PHONE 🔈 OFF"}
                     {pendingPhoto ? " · PHOTO" : ""}
                     {pendingAudio ? " · MIC" : ""}
                   </Text>
@@ -715,7 +718,7 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
   },
   attach: {
     flexDirection: "row",

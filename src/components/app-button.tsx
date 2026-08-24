@@ -14,6 +14,7 @@ type Props = {
   busy?: boolean;
   variant?: Variant;
   flex?: boolean;
+  compact?: boolean;
 };
 
 const variantStyles: Record<Variant, { bg: string; fg: string; border: string }> = {
@@ -32,6 +33,7 @@ export function AppButton({
   busy = false,
   variant = "secondary",
   flex = false,
+  compact = false,
 }: Props) {
   const palette = variantStyles[variant];
   const dimmed = disabled || busy;
@@ -45,19 +47,25 @@ export function AppButton({
       android_ripple={{ color: "rgba(255,255,255,0.08)" }}
       style={({ pressed }) => [
         styles.base,
+        compact ? styles.baseCompact : null,
         { backgroundColor: palette.bg, borderColor: palette.border },
         flex ? styles.flex : null,
         dimmed ? styles.dimmed : null,
         pressed && !dimmed ? styles.pressed : null,
       ]}>
       {busy ? (
-        <ActivityIndicator color={palette.fg} />
+        <ActivityIndicator color={palette.fg} size={compact ? "small" : undefined} />
       ) : (
-        <View style={styles.labels}>
+        <View style={[styles.labels, compact ? styles.labelsCompact : null]}>
           {icon ? <View style={styles.icon}>{icon}</View> : null}
-          <Text style={[styles.label, { color: palette.fg }]}>{label}</Text>
+          <Text style={[styles.label, compact ? styles.labelCompact : null, { color: palette.fg }]}>
+            {label}
+          </Text>
           {caption ? (
-            <Text style={[styles.caption, { color: palette.fg }]}>{caption}</Text>
+            <Text
+              style={[styles.caption, compact ? styles.captionCompact : null, { color: palette.fg }]}>
+              {caption}
+            </Text>
           ) : null}
         </View>
       )}
@@ -75,6 +83,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  baseCompact: {
+    minHeight: 34,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radii.sm,
+  },
   flex: {
     flex: 1,
   },
@@ -88,6 +102,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 2,
   },
+  labelsCompact: {
+    gap: 0,
+  },
   icon: {
     marginBottom: 1,
   },
@@ -96,9 +113,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: 0.2,
   },
+  labelCompact: {
+    fontSize: 11,
+    letterSpacing: 0.1,
+  },
   caption: {
     fontSize: 10,
     letterSpacing: 0.3,
     opacity: 0.72,
+  },
+  captionCompact: {
+    fontSize: 8,
+    letterSpacing: 0.2,
   },
 });
